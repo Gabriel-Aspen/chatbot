@@ -10,14 +10,16 @@ AWS_REGION = os.getenv("AWS_REGION", "us-west-2")
 agent_client = boto3.client(
     "bedrock-agent-runtime",
     region_name=AWS_REGION,
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
 )
 
 # You must provide your own knowledge base ID and model ARN
-KNOWLEDGE_BASE_ID = os.getenv("BEDROCK_KNOWLEDGE_BASE_ID", "6YC60AQVKG")
-MODEL_ARN = os.getenv("BEDROCK_MODEL_ARN", "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
+# knowledge_base = os.getenv("BEDROCK_knowledge_base", "6YC60AQVKG")
+inference_profile_id = os.getenv("BEDROCK_inference_profile_id", "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
 
 
-def retrieve_and_generate_with_kb(messages, user_id="user-1", max_retries=3):
+def retrieve_and_generate_with_kb(messages, knowledge_base, user_id="user-1", max_retries=10):
     """
     Uses Bedrock Agent Runtime's retrieve_and_generate to answer a question using a knowledge base.
     messages: list of dicts with 'role' and 'content' keys (like OpenAI format)
@@ -36,8 +38,8 @@ def retrieve_and_generate_with_kb(messages, user_id="user-1", max_retries=3):
                 input={"text": user_message},
                 retrieveAndGenerateConfiguration={
                     "knowledgeBaseConfiguration": {
-                        "knowledgeBaseId": KNOWLEDGE_BASE_ID,
-                        "modelArn": MODEL_ARN
+                        "knowledgeBaseId": knowledge_base,
+                        "modelArn": inference_profile_id
                     },
                     "type": "KNOWLEDGE_BASE"
                 }
