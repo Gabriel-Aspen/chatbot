@@ -15,7 +15,7 @@ def retrieve_and_generate_with_kb(messages, knowledge_base_id, inference_profile
     Returns the assistant's response as a string.
     """
 
-    agent_client = boto3.client(
+    client = boto3.client(
         "bedrock-agent-runtime",
         region_name=os.getenv("AWS_REGION"),
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
@@ -29,7 +29,7 @@ def retrieve_and_generate_with_kb(messages, knowledge_base_id, inference_profile
 
     for attempt in range(max_retries + 1):
         try:
-            response = agent_client.retrieve_and_generate(
+            response = client.retrieve_and_generate(
                 input={"text": user_message},
                 retrieveAndGenerateConfiguration={
                     "knowledgeBaseConfiguration": {
@@ -72,7 +72,7 @@ def sync_knowledge_base(knowledge_base_id, dataSourceId, max_retries=3):
     Returns:
         dict: The sync response or None if failed
     """
-    agent_client = boto3.client(
+    client = boto3.client(
         "bedrock-agent",
         region_name=os.getenv("AWS_REGION"),
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
@@ -81,7 +81,7 @@ def sync_knowledge_base(knowledge_base_id, dataSourceId, max_retries=3):
 
     for attempt in range(max_retries + 1):
         try:
-            response = agent_client.start_ingestion_job(
+            response = client.start_ingestion_job(
                 knowledgeBaseId=knowledge_base_id,
                 dataSourceId=dataSourceId
             )
@@ -121,7 +121,7 @@ def get_knowledge_base_status(knowledge_base_id):
     Returns:
         dict: The knowledge base status or None if failed
     """
-    agent_client = boto3.client(
+    client = boto3.client(
         "bedrock-agent",
         region_name=os.getenv("AWS_REGION"),
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
@@ -129,7 +129,7 @@ def get_knowledge_base_status(knowledge_base_id):
     )
 
     try:
-        response = agent_client.get_knowledge_base(
+        response = client.get_knowledge_base(
             knowledgeBaseId=knowledge_base_id
         )
         return response.get('knowledgeBase', {})
@@ -140,7 +140,12 @@ def get_knowledge_base_status(knowledge_base_id):
 
 def list_knowledge_bases():
     """List all Bedrock knowledge bases in the account."""
-    client = boto3.client('bedrock-agent')
+    client = boto3.client(
+        "bedrock-agent",
+        region_name=os.getenv("AWS_REGION"),
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    )
     paginator = client.get_paginator('list_knowledge_bases')
     knowledge_bases = []
     for page in paginator.paginate():
@@ -150,7 +155,12 @@ def list_knowledge_bases():
 
 def get_knowledge_base_by_name(name):
     """Fetch a Bedrock knowledge base by its name, including data source info."""
-    client = boto3.client('bedrock-agent')
+    client = boto3.client(
+        "bedrock-agent",
+        region_name=os.getenv("AWS_REGION"),
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    )
     # List all knowledge bases and match by name
     for kb in list_knowledge_bases():
         if kb.get('name') == name:
