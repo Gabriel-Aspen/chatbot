@@ -44,6 +44,16 @@ st.markdown("---")
 
 # Knowledge base selection in sidebar
 with st.sidebar:
+    st.subheader("Model Selection")
+    st.write("Choose the AI model for generating responses.")
+    inference_profiles = ["us.anthropic.claude-3-7-sonnet-20250219-v1:0", 
+                          "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+                          ]  # Add more as needed
+    inference_profile_id = st.selectbox("Model:", inference_profiles, index=0)
+
+    st.markdown("---")
+
+    # Knowledger base selector
     st.subheader("Knowledge Base (Optional)")
     st.write("Select a knowledge base to enhance your chat with domain-specific knowledge, or leave blank to use the general Claude model.")
 
@@ -70,17 +80,79 @@ with st.sidebar:
     kb_selected_name = st.selectbox("Knowledge Base:", kb_names, index=0)
     kb_selected_id = kb_map[kb_selected_name]
 
-    # Dynamically fetch datasources
-
-    dataSourceId = ""
-    if kb_selected_id:
-        kb_info = get_knowledge_base_by_name(kb_selected_name)
-        if kb_info and kb_info.get("data_sources"):
-            dataSourceId = kb_info["data_sources"][0].get("dataSourceId", "") # fetch the first for now
-    
-    # Sync button for knowledge base
+    # Documents
     if kb_selected_id:
         st.markdown("---")
+
+        st.subheader("Documents")
+        st.write("List and delete Documents recognized by the model. Be sure to sync changes after adding or deleting Documents.")
+
+        s3_bucket_name = os.environ.get("S3_BUCKET_NAME", "aspentech-data")
+        s3_prefix = f"bedrock/{kb_selected_name}/data"
+        
+        s3_objects = list_s3_objects(s3_bucket_name, prefix=s3_prefix)
+        if not s3_objects:
+            st.warning("Could not list Documents or no Documents found.")
+
+        st.write("Select Documents to delete:")
+        selected_objects = []
+        for obj in s3_objects:
+            if st.checkbox(obj, key=f"s3obj_{obj}"):
+                selected_objects.append(obj)
+        if st.button("🗑️ Delete Selected Documents", type="secondary"):
+            if selected_objects:
+                # Placeholder for delete function
+                # delete_s3_objects(s3_bucket_name, selected_objects)
+                st.info(f"Would delete: {selected_objects}")
+            else:
+                st.warning("Please select at least one Document to delete.")
+
+    # PDF Processing
+    if kb_selected_id:
+        st.markdown("---")
+        st.subheader("PDF Processing")
+        st.write("Enter a PDF URL to process and add to the knowledge base.")
+        pdf_url = st.text_input("PDF URL:", placeholder="https://example.com/document.pdf")
+        if st.button("📄 Process PDF", type="secondary"):
+            if pdf_url:
+                with st.spinner("Processing PDF..."):
+                    parameters = {"url": pdf_url}
+
+                    lambda_result = invoke_lambda_function(parameters)
+                    if lambda_result:
+                        # Check if the lambda response indicates completion
+                        if isinstance(lambda_result, dict) and lambda_result.get('statusCode') == 200:
+                            st.success("PDF processing completed successfully!")
+                        elif isinstance(lambda_result, dict) and lambda_result.get('statusCode') == 202:
+                            st.success("PDF processing started successfully!")
+                        else:
+                            st.success("PDF processing initiated!")
+                        
+                        # Extract user-friendly message from response
+                        user_message = "PDF processing completed"
+                        if isinstance(lambda_result, dict):
+                            response_body = lambda_result.get('response', {}).get('functionResponse', {}).get('responseBody', {})
+                            text_body = response_body.get('TEXT', {}).get('body', '')
+                            if text_body:
+                                user_message = text_body
+                        
+                        # st.info(f"Message: {user_message}")
+                        st.info(f"Result: {lambda_result}")
+                    else:
+                        st.error("Failed to process PDF. Please try again.")
+            else:
+             st.warning("Please enter a PDF URL.")
+
+    # Sync button for knowledge base
+    if kb_selected_id:
+        # Dynamically fetch datasources
+        st.markdown("---")
+        dataSourceId = ""
+        if kb_selected_id:
+            kb_info = get_knowledge_base_by_name(kb_selected_name)
+            if kb_info and kb_info.get("data_sources"):
+                dataSourceId = kb_info["data_sources"][0].get("dataSourceId", "") # fetch the first for now
+
         st.subheader("Knowledge Base Sync")
         st.write("Sync the knowledge base to ensure it's up to date with the latest data sources.")
         if st.button("🔄 Sync Knowledge Base", type="secondary"):
@@ -94,70 +166,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    st.subheader("PDF Processing")
-    st.write("Enter a PDF URL to process and add to the knowledge base.")
-    pdf_url = st.text_input("PDF URL:", placeholder="https://example.com/document.pdf")
-    if st.button("📄 Process PDF", type="secondary"):
-        if pdf_url:
-            with st.spinner("Processing PDF..."):
-                parameters = {"url": pdf_url}
-
-                lambda_result = invoke_lambda_function(parameters)
-                if lambda_result:
-                    # Check if the lambda response indicates completion
-                    if isinstance(lambda_result, dict) and lambda_result.get('statusCode') == 200:
-                        st.success("PDF processing completed successfully!")
-                    elif isinstance(lambda_result, dict) and lambda_result.get('statusCode') == 202:
-                        st.success("PDF processing started successfully!")
-                    else:
-                        st.success("PDF processing initiated!")
-                    
-                    # Extract user-friendly message from response
-                    user_message = "PDF processing completed"
-                    if isinstance(lambda_result, dict):
-                        response_body = lambda_result.get('response', {}).get('functionResponse', {}).get('responseBody', {})
-                        text_body = response_body.get('TEXT', {}).get('body', '')
-                        if text_body:
-                            user_message = text_body
-                    
-                    # st.info(f"Message: {user_message}")
-                    st.info(f"Result: {lambda_result}")
-                else:
-                    st.error("Failed to process PDF. Please try again.")
-        else:
-            st.warning("Please enter a PDF URL.")
-    
-    st.markdown("---")
-    
-    st.subheader("Model Selection")
-    st.write("Choose the AI model for generating responses.")
-    inference_profiles = ["us.anthropic.claude-3-7-sonnet-20250219-v1:0", 
-                          "us.anthropic.claude-3-5-haiku-20241022-v1:0"
-                          ]  # Add more as needed
-    inference_profile_id = st.selectbox("Model:", inference_profiles, index=0)
-
-    st.markdown("---")
-
-    st.subheader("S3 Bucket Objects")
-    st.write("List, select, and delete objects from an S3 bucket.")
-
-    s3_bucket_name = os.environ.get("S3_BUCKET_NAME", "aspentech-data")
-    s3_prefix = f"bedrock/{kb_selected_name}/data"
-    # s3_prefix = f"bedrock/astrology/data"
-    
-    s3_objects = list_s3_objects(s3_bucket_name, prefix=s3_prefix)
-    if not s3_objects:
-        st.warning("Could not list S3 objects or no objects found.")
-
-    selected_objects = st.multiselect("Select objects to delete:", s3_objects)
-    if st.button("🗑️ Delete Selected Objects", type="secondary"):
-        if selected_objects:
-            # Placeholder for delete function
-            # delete_s3_objects(s3_bucket_name, selected_objects)
-            st.info(f"Would delete: {selected_objects}")
-        else:
-            st.warning("Please select at least one object to delete.")
-
 st.markdown("---")
 
 # Display the existing chat messages via `st.chat_message`.
