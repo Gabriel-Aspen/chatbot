@@ -1,8 +1,9 @@
 import streamlit as st
 from aws_tools.bedrock_client import invoke_claude
-from aws_tools.bedrock_agent_client import retrieve_and_generate_with_kb, sync_knowledge_base
+from aws_tools.bedrock_kb_client import retrieve_and_generate_with_kb, sync_knowledge_base
 from aws_tools.lambda_client import invoke_lambda_function
-from aws_tools.bedrock_agent_client import get_knowledge_base_by_name, list_knowledge_bases
+from aws_tools.bedrock_kb_client import get_knowledge_base_by_name, list_knowledge_bases
+from aws_tools.s3_client import list_s3_objects
 import ast
 import os
 
@@ -51,7 +52,7 @@ with st.sidebar:
     try:
         # Check for allowed knowledge bases from environment variable
         if IS_LOCAL:
-            os.environ["ALLOWED_KBS"] = '["test-knowledge-base"]'
+            os.environ["ALLOWED_KBS"] = '["astrology"]'
         allowed_kbs_env = os.environ.get("ALLOWED_KBS", "[]")
         try:
             allowed_kbs = set(ast.literal_eval(allowed_kbs_env))
@@ -134,6 +135,28 @@ with st.sidebar:
                           "us.anthropic.claude-3-5-haiku-20241022-v1:0"
                           ]  # Add more as needed
     inference_profile_id = st.selectbox("Model:", inference_profiles, index=0)
+
+    st.markdown("---")
+
+    st.subheader("S3 Bucket Objects")
+    st.write("List, select, and delete objects from an S3 bucket.")
+
+    s3_bucket_name = os.environ.get("S3_BUCKET_NAME", "aspentech-data")
+    s3_prefix = f"bedrock/{kb_selected_name}/data"
+    # s3_prefix = f"bedrock/astrology/data"
+    
+    s3_objects = list_s3_objects(s3_bucket_name, prefix=s3_prefix)
+    if not s3_objects:
+        st.warning("Could not list S3 objects or no objects found.")
+
+    selected_objects = st.multiselect("Select objects to delete:", s3_objects)
+    if st.button("🗑️ Delete Selected Objects", type="secondary"):
+        if selected_objects:
+            # Placeholder for delete function
+            # delete_s3_objects(s3_bucket_name, selected_objects)
+            st.info(f"Would delete: {selected_objects}")
+        else:
+            st.warning("Please select at least one object to delete.")
 
 st.markdown("---")
 

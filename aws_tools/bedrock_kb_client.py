@@ -9,8 +9,7 @@ AWS_REGION = os.getenv("AWS_REGION", "us-west-2")
 # Create a boto3 client for Bedrock Agent Runtime
 
 # You must provide your own knowledge base ID and model ARN
-# knowledge_base = os.getenv("BEDROCK_knowledge_base", "6YC60AQVKG")
-inference_profile_id = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+# inference_profile_id = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
 
 
 def retrieve_and_generate_with_kb(messages, knowledge_base_id, inference_profile_id, user_id="user-1", max_retries=10):

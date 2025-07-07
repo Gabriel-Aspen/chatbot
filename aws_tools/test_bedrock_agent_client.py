@@ -1,4 +1,4 @@
-from bedrock_agent_client import get_knowledge_base_by_name
+from aws_tools.bedrock_kb_client import get_knowledge_base_by_name
 import json
 
 if __name__ == "__main__":
