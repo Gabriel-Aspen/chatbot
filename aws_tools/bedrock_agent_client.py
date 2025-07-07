@@ -132,4 +132,31 @@ def get_knowledge_base_status(knowledge_base_id):
         return response.get('knowledgeBase', {})
     except Exception as e:
         print(f"Error getting knowledge base status: {str(e)}")
-        return None 
+        return None
+
+def list_knowledge_bases():
+    """List all Bedrock knowledge bases in the account."""
+    client = boto3.client('bedrock-agent')
+    paginator = client.get_paginator('list_knowledge_bases')
+    knowledge_bases = []
+    for page in paginator.paginate():
+        knowledge_bases.extend(page.get('knowledgeBaseSummaries', []))
+    return knowledge_bases
+
+
+def get_knowledge_base_by_name(name):
+    """Fetch a Bedrock knowledge base by its name, including data source info."""
+    client = boto3.client('bedrock-agent')
+    # List all knowledge bases and match by name
+    for kb in list_knowledge_bases():
+        if kb.get('name') == name:
+            kb_id = kb.get('knowledgeBaseId')
+            kb_info = {}
+            kb_info['kb_id'] = kb_id
+            # kb_info = client.get_knowledge_base(knowledgeBaseId=kb_id).get('knowledgeBase')
+            # List data sources for this knowledge base
+            # kb_info['dataSources'] = data_sources
+            data_sources = client.list_data_sources(knowledgeBaseId=kb_id).get('dataSourceSummaries', [])
+            kb_info['data_sources'] = data_sources
+            return kb_info
+    return None 

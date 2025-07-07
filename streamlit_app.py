@@ -1,8 +1,13 @@
 import streamlit as st
-from bedrock_client import invoke_claude
-from bedrock_agent_client import retrieve_and_generate_with_kb, sync_knowledge_base
-from lambda_client import invoke_lambda_function
+from aws_tools.bedrock_client import invoke_claude
+from aws_tools.bedrock_agent_client import retrieve_and_generate_with_kb, sync_knowledge_base
+from aws_tools.lambda_client import invoke_lambda_function
+from aws_tools.bedrock_agent_client import get_knowledge_base_by_name, list_knowledge_bases
+import ast
 import os
+
+# Toggle for development
+IS_LOCAL = True
 
 # Show title and description.
 st.title("💬 Chatbot")
@@ -20,18 +25,19 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Password protection
-# if "authenticated" not in st.session_state:
-#     st.session_state["authenticated"] = False
+if not IS_LOCAL:
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
 
-# if not st.session_state["authenticated"]:
-#     password = st.text_input("Enter password", type="password")
-    # if password:
-    #     if password == os.environ.get("APP_PASSWORD"):
-    #         st.session_state["authenticated"] = True
-#             st.rerun()
-#         else:
-#             st.error("Incorrect password. Please try again.")
-#     st.stop()
+    if not st.session_state["authenticated"]:
+        password = st.text_input("Enter password", type="password")
+        if password:
+            if password == os.environ.get("APP_PASSWORD"):
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("Incorrect password. Please try again.")
+        st.stop()
 
 st.markdown("---")
 
@@ -39,13 +45,37 @@ st.markdown("---")
 with st.sidebar:
     st.subheader("Knowledge Base (Optional)")
     st.write("Select a knowledge base to enhance your chat with domain-specific knowledge, or leave blank to use the general Claude model.")
-    kb_map = {"None": "", "Astrology": "6YC60AQVKG"}  # Add more as needed
+
+    # Dynamically populate the knowledge base map using Bedrock
+    kb_map = {"None": ""}
+    try:
+        # Check for allowed knowledge bases from environment variable
+        if IS_LOCAL:
+            os.environ["ALLOWED_KBS"] = '["test-knowledge-base"]'
+        allowed_kbs_env = os.environ.get("ALLOWED_KBS", "[]")
+        try:
+            allowed_kbs = set(ast.literal_eval(allowed_kbs_env))
+        except Exception:
+            allowed_kbs = set()
+        for kb in list_knowledge_bases():
+            name = kb.get("name")
+            kb_id = kb.get("knowledgeBaseId")
+            # Only include if allowed, or if ALLOWED_KBS is empty (allow all)
+            if name and kb_id and (not allowed_kbs or name in allowed_kbs):
+                kb_map[name] = kb_id
+    except Exception as e:
+        st.warning(f"Could not load knowledge bases: {e}")
     kb_names = list(kb_map.keys())
     kb_selected_name = st.selectbox("Knowledge Base:", kb_names, index=0)
     kb_selected_id = kb_map[kb_selected_name]
 
-    # Change this later
-    dataSourceId = "2EETF2VIUC"
+    # Dynamically fetch datasources
+
+    dataSourceId = ""
+    if kb_selected_id:
+        kb_info = get_knowledge_base_by_name(kb_selected_name)
+        if kb_info and kb_info.get("data_sources"):
+            dataSourceId = kb_info["data_sources"][0].get("dataSourceId", "") # fetch the first for now
     
     # Sync button for knowledge base
     if kb_selected_id:
