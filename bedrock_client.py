@@ -14,8 +14,9 @@ bedrock = boto3.client(
 
 # Claude 3 Sonnet model ID for Bedrock
 CLAUDE_MODEL_ID = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+inference_profile_id = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
 
-def invoke_claude(messages):
+def invoke_claude(messages, inference_profile_id):
     """
     Invokes the Claude 3 model on AWS Bedrock with the given messages.
     messages: list of dicts with 'role' and 'content' keys (like OpenAI format)
@@ -29,7 +30,7 @@ def invoke_claude(messages):
         "anthropic_version": "bedrock-2023-05-31"
     }
     response = bedrock.invoke_model(
-        modelId=CLAUDE_MODEL_ID,
+        modelId=inference_profile_id,
         body=json.dumps(body),
         accept="application/json",
         contentType="application/json"
