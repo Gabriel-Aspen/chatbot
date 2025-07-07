@@ -1,7 +1,14 @@
 import streamlit as st
-from bedrock_client import invoke_claude
-from bedrock_agent_client import retrieve_and_generate_with_kb
+from aws_tools.bedrock_client import invoke_claude
+from aws_tools.bedrock_kb_client import retrieve_and_generate_with_kb, sync_knowledge_base
+from aws_tools.lambda_client import invoke_lambda_function
+from aws_tools.bedrock_kb_client import get_knowledge_base_by_name, list_knowledge_bases
+from aws_tools.s3_client import list_s3_objects
+import ast
 import os
+
+# Toggle for development
+IS_LOCAL = False
 
 # Show title and description.
 st.title("💬 Chatbot")
@@ -19,30 +26,143 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Password protection
-if "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False
+if not IS_LOCAL:
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
 
-if not st.session_state["authenticated"]:
-    password = st.text_input("Enter password", type="password")
-    if password:
-        if password == os.environ.get("APP_PASSWORD"):
-            st.session_state["authenticated"] = True
-            st.rerun()
-        else:
-            st.error("Incorrect password. Please try again.")
-    st.stop()
+    if not st.session_state["authenticated"]:
+        password = st.text_input("Enter password", type="password")
+        if password:
+            if password == os.environ.get("APP_PASSWORD"):
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("Incorrect password. Please try again.")
+        st.stop()
 
 st.markdown("---")
 
 # Knowledge base selection in sidebar
 with st.sidebar:
+    st.subheader("Model Selection")
+    st.write("Choose the AI model for generating responses.")
+    inference_profiles = ["us.anthropic.claude-3-7-sonnet-20250219-v1:0", 
+                          "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+                          ]  # Add more as needed
+    inference_profile_id = st.selectbox("Model:", inference_profiles, index=0)
+
+    st.markdown("---")
+
+    # Knowledger base selector
     st.subheader("Knowledge Base (Optional)")
     st.write("Select a knowledge base to enhance your chat with domain-specific knowledge, or leave blank to use the general Claude model.")
-    kb_map = {"None": "", "Astrology": "6YC60AQVKG"}  # Add more as needed
+
+    # Dynamically populate the knowledge base map using Bedrock
+    kb_map = {"None": ""}
+    try:
+        # Check for allowed knowledge bases from environment variable
+        allowed_kbs_env = os.environ.get("ALLOWED_KBS", "[]")
+        try:
+            allowed_kbs = set(ast.literal_eval(allowed_kbs_env))
+        except Exception:
+            allowed_kbs = set()
+        for kb in list_knowledge_bases():
+            name = kb.get("name")
+            kb_id = kb.get("knowledgeBaseId")
+            # Only include if allowed, or if ALLOWED_KBS is empty (allow all)
+            if name and kb_id and (not allowed_kbs or name in allowed_kbs):
+                kb_map[name] = kb_id
+    except Exception as e:
+        st.warning(f"Could not load knowledge bases: {e}")
     kb_names = list(kb_map.keys())
     kb_selected_name = st.selectbox("Knowledge Base:", kb_names, index=0)
     kb_selected_id = kb_map[kb_selected_name]
 
+    # Documents
+    if kb_selected_id:
+        st.markdown("---")
+
+        st.subheader("Documents")
+        st.write("List and delete Documents recognized by the model. Be sure to sync changes after adding or deleting Documents.")
+
+        s3_bucket_name = os.environ.get("S3_BUCKET_NAME")
+        s3_prefix = f"bedrock/{kb_selected_name}/data"
+        
+        s3_objects = list_s3_objects(s3_bucket_name, prefix=s3_prefix)
+        if not s3_objects:
+            st.warning("Could not list Documents or no Documents found.")
+
+        st.write("Select Documents to delete:")
+        selected_objects = []
+        for obj in s3_objects:
+            if st.checkbox(obj, key=f"s3obj_{obj}"):
+                selected_objects.append(obj)
+        if st.button("🗑️ Delete Selected Documents", type="secondary"):
+            if selected_objects:
+                # Placeholder for delete function
+                # delete_s3_objects(s3_bucket_name, selected_objects)
+                st.info(f"Would delete: {selected_objects}")
+            else:
+                st.warning("Please select at least one Document to delete.")
+
+    # PDF Processing
+    if kb_selected_id:
+        st.markdown("---")
+        st.subheader("PDF Processing")
+        st.write("Enter a PDF URL to process and add to the knowledge base.")
+        pdf_url = st.text_input("PDF URL:", placeholder="https://example.com/document.pdf")
+        if st.button("📄 Process PDF", type="secondary"):
+            if pdf_url:
+                with st.spinner("Processing PDF..."):
+                    parameters = {"url": pdf_url}
+
+                    lambda_result = invoke_lambda_function(parameters)
+                    if lambda_result:
+                        # Check if the lambda response indicates completion
+                        if isinstance(lambda_result, dict) and lambda_result.get('statusCode') == 200:
+                            st.success("PDF processing completed successfully!")
+                        elif isinstance(lambda_result, dict) and lambda_result.get('statusCode') == 202:
+                            st.success("PDF processing started successfully!")
+                        else:
+                            st.success("PDF processing initiated!")
+                        
+                        # Extract user-friendly message from response
+                        user_message = "PDF processing completed"
+                        if isinstance(lambda_result, dict):
+                            response_body = lambda_result.get('response', {}).get('functionResponse', {}).get('responseBody', {})
+                            text_body = response_body.get('TEXT', {}).get('body', '')
+                            if text_body:
+                                user_message = text_body
+                        
+                        # st.info(f"Message: {user_message}")
+                        st.info(f"Result: {lambda_result}")
+                    else:
+                        st.error("Failed to process PDF. Please try again.")
+            else:
+             st.warning("Please enter a PDF URL.")
+
+    # Sync button for knowledge base
+    if kb_selected_id:
+        # Dynamically fetch datasources
+        st.markdown("---")
+        dataSourceId = ""
+        if kb_selected_id:
+            kb_info = get_knowledge_base_by_name(kb_selected_name)
+            if kb_info and kb_info.get("data_sources"):
+                dataSourceId = kb_info["data_sources"][0].get("dataSourceId", "") # fetch the first for now
+
+        st.subheader("Knowledge Base Sync")
+        st.write("Sync the knowledge base to ensure it's up to date with the latest data sources.")
+        if st.button("🔄 Sync Knowledge Base", type="secondary"):
+            with st.spinner("Syncing knowledge base..."):
+                sync_result = sync_knowledge_base(kb_selected_id, dataSourceId)
+                if sync_result:
+                    st.success("Knowledge base sync started successfully! This may take a few minutes to complete.")
+                else:
+                    st.error("Failed to start knowledge base sync. Please try again.")
+    
+    st.markdown("---")
+    
 st.markdown("---")
 
 # Display the existing chat messages via `st.chat_message`.
@@ -62,9 +182,9 @@ if prompt := st.chat_input("What is up?"):
     # Spinner while generating response
     with st.spinner("Assistant is thinking..."):
         if kb_selected_id:
-            response = retrieve_and_generate_with_kb(st.session_state.messages, knowledge_base=kb_selected_id)
+            response = retrieve_and_generate_with_kb(st.session_state.messages, knowledge_base_id=kb_selected_id, inference_profile_id=inference_profile_id)
         else:
-            response = invoke_claude(st.session_state.messages)
+            response = invoke_claude(st.session_state.messages, inference_profile_id=inference_profile_id)
 
     # Display and store the response.
     with st.chat_message("assistant"):
