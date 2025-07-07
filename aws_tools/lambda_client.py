@@ -40,5 +40,6 @@ def invoke_lambda_function(parameters):
         
     except Exception as e:
         # print(f"Error invoking Lambda function: {str(e)}")
+        # return str(e)
         print(f"Error invoking Lambda function")
         return None

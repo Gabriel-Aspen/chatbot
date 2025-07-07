@@ -6,6 +6,9 @@ from aws_tools.bedrock_kb_client import get_knowledge_base_by_name, list_knowled
 from aws_tools.s3_client import list_s3_objects
 import ast
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Toggle for development
 IS_LOCAL = False
@@ -135,7 +138,7 @@ with st.sidebar:
                                 user_message = text_body
                         
                         # st.info(f"Message: {user_message}")
-                        st.info(f"Result: {lambda_result}")
+                        st.info(f"Result: {lambda_result.get('body')}")
                     else:
                         st.error("Failed to process PDF. Please try again.")
             else:
