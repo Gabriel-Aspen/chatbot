@@ -8,7 +8,7 @@ import ast
 import os
 
 # Toggle for development
-# IS_LOCAL = True
+IS_LOCAL = False
 
 # Show title and description.
 st.title("💬 Chatbot")
