@@ -10,9 +10,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Toggle for development
-IS_LOCAL = False
-
 # Show title and description.
 st.title("💬 Chatbot")
 st.write(
@@ -29,19 +26,18 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Password protection
-if not IS_LOCAL:
-    if "authenticated" not in st.session_state:
-        st.session_state["authenticated"] = False
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
 
-    if not st.session_state["authenticated"]:
-        password = st.text_input("Enter password", type="password")
-        if password:
-            if password == os.environ.get("APP_PASSWORD"):
-                st.session_state["authenticated"] = True
-                st.rerun()
-            else:
-                st.error("Incorrect password. Please try again.")
-        st.stop()
+if not st.session_state["authenticated"]:
+    password = st.text_input("Enter password", type="password")
+    if password:
+        if password == os.environ.get("APP_PASSWORD"):
+            st.session_state["authenticated"] = True
+            st.rerun()
+        else:
+            st.error("Incorrect password. Please try again.")
+    st.stop()
 
 st.markdown("---")
 
