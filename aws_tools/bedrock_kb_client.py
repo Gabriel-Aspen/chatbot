@@ -17,7 +17,7 @@ def retrieve_and_generate_with_kb(messages, knowledge_base_id, inference_profile
 
     agent_client = boto3.client(
         "bedrock-agent-runtime",
-        region_name=AWS_REGION,
+        region_name=os.getenv("AWS_REGION"),
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
     )
@@ -74,7 +74,7 @@ def sync_knowledge_base(knowledge_base_id, dataSourceId, max_retries=3):
     """
     agent_client = boto3.client(
         "bedrock-agent",
-        region_name=AWS_REGION,
+        region_name=os.getenv("AWS_REGION"),
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
     )
@@ -123,7 +123,7 @@ def get_knowledge_base_status(knowledge_base_id):
     """
     agent_client = boto3.client(
         "bedrock-agent",
-        region_name=AWS_REGION,
+        region_name=os.getenv("AWS_REGION"),
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
     )
