@@ -11,11 +11,6 @@ bedrock = boto3.client(
     aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
     aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
 )
-
-# Claude 3 Sonnet model ID for Bedrock
-CLAUDE_MODEL_ID = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-inference_profile_id = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-
 def invoke_claude(messages, inference_profile_id):
     """
     Invokes the Claude 3 model on AWS Bedrock with the given messages.

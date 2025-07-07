@@ -6,12 +6,6 @@ from botocore.exceptions import ClientError
 
 AWS_REGION = os.getenv("AWS_REGION", "us-west-2")
 
-# Create a boto3 client for Bedrock Agent Runtime
-
-# You must provide your own knowledge base ID and model ARN
-# inference_profile_id = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-
-
 def retrieve_and_generate_with_kb(messages, knowledge_base_id, inference_profile_id, user_id="user-1", max_retries=10):
     """
     Uses Bedrock Agent Runtime's retrieve_and_generate to answer a question using a knowledge base.
@@ -60,11 +54,12 @@ def retrieve_and_generate_with_kb(messages, knowledge_base_id, inference_profile
                     continue
                 else:
                     return "Sorry, the knowledge base is currently unavailable due to database maintenance. Please try again in a few moments."
-            else:
-                # Re-raise if it's not an auto-pause error
-                raise e
+            # else:
+            #     # Re-raise if it's not an auto-pause error
+            #     raise e
         except Exception as e:
-            return f"An error occurred while processing your request: {str(e)}"
+            # return f"An error occurred while processing your request: {str(e)}"
+            return f"An error occurred while processing your request"
 
 def sync_knowledge_base(knowledge_base_id, dataSourceId, max_retries=3):
     """
@@ -91,7 +86,7 @@ def sync_knowledge_base(knowledge_base_id, dataSourceId, max_retries=3):
                 dataSourceId=dataSourceId
             )
             
-            print(f"Knowledge base sync started. Job ID: {response.get('ingestionJob', {}).get('ingestionJobId')}")
+            print(f"Knowledge base sync started")
             return response
             
         except ClientError as e:
@@ -108,10 +103,12 @@ def sync_knowledge_base(knowledge_base_id, dataSourceId, max_retries=3):
                     print("Knowledge base sync failed after max retries due to database maintenance.")
                     return None
             else:
-                print(f"Error syncing knowledge base: {error_message}")
+                # print(f"Error syncing knowledge base: {error_message}")
+                print(f"Error syncing knowledge base")
                 return None
         except Exception as e:
-            print(f"An error occurred while syncing the knowledge base: {str(e)}")
+            # print(f"An error occurred while syncing the knowledge base: {str(e)}")
+            print(f"An error occurred while syncing the knowledge base")
             return None
 
 def get_knowledge_base_status(knowledge_base_id):
@@ -124,13 +121,21 @@ def get_knowledge_base_status(knowledge_base_id):
     Returns:
         dict: The knowledge base status or None if failed
     """
+    agent_client = boto3.client(
+        "bedrock-agent",
+        region_name=AWS_REGION,
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    )
+
     try:
         response = agent_client.get_knowledge_base(
             knowledgeBaseId=knowledge_base_id
         )
         return response.get('knowledgeBase', {})
     except Exception as e:
-        print(f"Error getting knowledge base status: {str(e)}")
+        # print(f"Error getting knowledge base status: {str(e)}")
+        print(f"Error getting knowledge base status")
         return None
 
 def list_knowledge_bases():

@@ -61,8 +61,6 @@ with st.sidebar:
     kb_map = {"None": ""}
     try:
         # Check for allowed knowledge bases from environment variable
-        if IS_LOCAL:
-            os.environ["ALLOWED_KBS"] = '["astrology"]'
         allowed_kbs_env = os.environ.get("ALLOWED_KBS", "[]")
         try:
             allowed_kbs = set(ast.literal_eval(allowed_kbs_env))
@@ -87,7 +85,7 @@ with st.sidebar:
         st.subheader("Documents")
         st.write("List and delete Documents recognized by the model. Be sure to sync changes after adding or deleting Documents.")
 
-        s3_bucket_name = os.environ.get("S3_BUCKET_NAME", "aspentech-data")
+        s3_bucket_name = os.environ.get("S3_BUCKET_NAME")
         s3_prefix = f"bedrock/{kb_selected_name}/data"
         
         s3_objects = list_s3_objects(s3_bucket_name, prefix=s3_prefix)
@@ -160,7 +158,6 @@ with st.sidebar:
                 sync_result = sync_knowledge_base(kb_selected_id, dataSourceId)
                 if sync_result:
                     st.success("Knowledge base sync started successfully! This may take a few minutes to complete.")
-                    st.info(f"Job ID: {sync_result.get('ingestionJob', {}).get('ingestionJobId', 'N/A')}")
                 else:
                     st.error("Failed to start knowledge base sync. Please try again.")
     

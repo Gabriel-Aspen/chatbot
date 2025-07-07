@@ -21,5 +21,6 @@ def list_s3_objects(bucket_name: str, prefix: str = "") -> List[str]:
         response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
         return [obj["Key"].rsplit("/", 1)[-1] for obj in response.get("Contents", [])]
     except Exception as e:
-        print(f"Could not list S3 objects: {e}")
+        # print(f"Could not list S3 objects: {e}")
+        print(f"Could not list S3 objects")
         return [] 

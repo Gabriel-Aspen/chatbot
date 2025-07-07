@@ -39,36 +39,6 @@ def invoke_lambda_function(parameters):
         return response_payload
         
     except Exception as e:
-        print(f"Error invoking Lambda function: {str(e)}")
+        # print(f"Error invoking Lambda function: {str(e)}")
+        print(f"Error invoking Lambda function")
         return None
-
-def example_usage():
-    """
-    Example usage of the Lambda client with the specified payload structure.
-    """
-    # Example parameters
-    parameters = [
-        {
-            "name": "pdf_url",
-            "type": "string", 
-            # "value": "https://libsysdigi.library.uiuc.edu/oca/Books2007-10/astrologyitstech00libr/astrologyitstech00libr.pdf"
-            "value": "https://www.lkouniv.ac.in/site/writereaddata/siteContent/202004132156500824Anil_Kumar_Porwa_jyotir_Western_Astrology.pdf"
-        }
-    ]
-    
-    # Invoke the Lambda function
-    result = invoke_lambda_function(
-        # action_group="value1",
-        # function_name="value2", 
-        # message_version="value3",
-        parameters=parameters
-    )
-    
-    if result:
-        print("Lambda invocation successful:")
-        print(json.dumps(result, indent=2))
-    else:
-        print("Lambda invocation failed")
-
-if __name__ == "__main__":
-    example_usage()
